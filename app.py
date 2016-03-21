@@ -96,7 +96,6 @@ def measure_performance(actual_target, expected_target):
     return mae, mse, r2
 
 
-<<<<<<< HEAD
 def show_relationships(dataset):
         
         # Convert dataset to a dataframe
@@ -192,7 +191,8 @@ def plot_relationship(feature, dataframe, featureName):
     plt.ylabel("Housing Price")
     plt.title("Relationship between Feature and Price")
     plt.show()
-=======
+
+
 def save_model(m, model_name):
     if not os.path.exists('persistence'):
         os.makedirs('persistence')
@@ -201,8 +201,6 @@ def save_model(m, model_name):
 
 def load_model(model_name):
     return joblib.load('persistence/' + model_name)
->>>>>>> origin/master
-
 
 if __name__ == '__main__':
     # load dataset
@@ -230,11 +228,7 @@ if __name__ == '__main__':
     fig.canvas.set_window_title('Residual Plots')
 
     for i in range(len(models)):
-<<<<<<< HEAD
         print('\n------------------------', models_names[i], '------------------------')
-        train_and_evaluate(models[i], X_train, y_train)
-=======
-        print('------------------------', models_names[i], '------------------------')
 
         # if model was previously saved, load it
         model = load_model(models_names[i])
@@ -245,7 +239,6 @@ if __name__ == '__main__':
             # otherwise, train it
             print('training ', models_names[i], ' ...')
             train_and_evaluate(models[i], X_train, y_train)
->>>>>>> origin/master
 
         predicted_training_target = models[i].predict(X_train)
         predicted_testing_target = models[i].predict(X_test)
