@@ -16,6 +16,8 @@ Generalised Machine Learning Models:
             7. Extra Trees.
             8. Gradient Boosting.
 """
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
@@ -24,6 +26,7 @@ from sklearn import metrics, svm
 from sklearn.cross_validation import train_test_split, KFold, cross_val_score
 from sklearn.ensemble import ExtraTreesRegressor, GradientBoostingRegressor
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.externals import joblib
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Ridge
 
@@ -88,6 +91,16 @@ def measure_performance(actual_target, expected_target):
     return mae, mse, r2
 
 
+def save_model(m, model_name):
+    if not os.path.exists('persistence'):
+        os.makedirs('persistence')
+    joblib.dump(m, 'persistence/' + model_name)
+
+
+def load_model(model_name):
+    return joblib.load('persistence/' + model_name)
+
+
 if __name__ == '__main__':
     # load dataset
     boston = load_dataset()
@@ -110,10 +123,21 @@ if __name__ == '__main__':
 
     for i in range(len(models)):
         print('------------------------', models_names[i], '------------------------')
-        train_and_evaluate(models[i], X_train, y_train)
+
+        # if model was previously saved, load it
+        model = load_model(models_names[i])
+        if model:
+            print('loading ', models_names[i], ' ...')
+            models[i] = model
+        else:
+            # otherwise, train it
+            print('training ', models_names[i], ' ...')
+            train_and_evaluate(models[i], X_train, y_train)
 
         predicted_training_target = models[i].predict(X_train)
         predicted_testing_target = models[i].predict(X_test)
+
+        save_model(models[i], models_names[i])
 
         training_mae, training_mse, training_r2 = measure_performance(predicted_training_target, y_train)
         testing_mae, testing_mse, testing_r2 = measure_performance(predicted_testing_target, y_test)
