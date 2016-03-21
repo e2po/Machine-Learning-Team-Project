@@ -17,9 +17,12 @@ Generalised Machine Learning Models:
             8. Gradient Boosting.
 """
 import os
+import time
+from itertools import combinations
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 from pandas import DataFrame
 from sklearn import metrics, svm
@@ -39,8 +42,20 @@ def load_dataset():
 
     :return: boston dataset
     """
-    from sklearn.datasets import load_boston
-    return load_boston()
+    url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.data'
+    col_names = ['CRIM', 'ZN', 'INDUS', 'CHAS', 'NOX', 'RM', 'AGE',
+                 'DIS', 'RAD', 'TAX', 'PTRATIO', 'B', 'LSTAT', 'MEDV']
+    dataset = pd.read_csv(url, header=None, delim_whitespace=True, names=col_names)
+
+    if pd.isnull(dataset).any().any():
+        print('Some values are missing.')
+        dataset = dataset.dropna()
+
+    feature_cols = col_names[:-1]
+    features = dataset[feature_cols]
+    target = dataset.MEDV
+
+    return feature_cols, features, target
 
 
 def split_train_test(features, target, test_size=0.20):
@@ -91,23 +106,47 @@ def measure_performance(actual_target, expected_target):
     return mae, mse, r2
 
 
-def save_model(m, model_name):
+def save_model(model, model_name):
     if not os.path.exists('persistence'):
         os.makedirs('persistence')
-    joblib.dump(m, 'persistence/' + model_name)
+    joblib.dump(model, 'persistence/' + model_name)
 
 
 def load_model(model_name):
     return joblib.load('persistence/' + model_name)
 
 
+def find_best_features(model, training_features, testing_features, training_target, testing_target):
+    current_best_mse = 100
+    current_best_features = []
+    indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    start = time.time()
+    for combination_length in reversed(range(13)):
+        combination_length += 1
+        for c in combinations(indices, combination_length):
+            model.fit(training_features.ix[:, c], training_target)
+            predicted = models[-1].predict(testing_features.ix[:, c])
+            t_mae, current_mse, t_r2 = measure_performance(predicted, testing_target)
+            if current_mse < current_best_mse:
+                print('New best MSE: ', current_mse, ' using features: ', c)
+                current_best_mse = current_mse
+                current_best_features = c
+
+    end = time.time()
+    print('Execution time: ', end - start)
+    return current_best_mse, current_best_features
+
+
 if __name__ == '__main__':
     # load dataset
-    boston = load_dataset()
+    boston_feature_names, boston_features, boston_target = load_dataset()
+
     # describe_dataset(boston)
+
     # split dataset into training and testing subsets
-    X_train, X_test, y_train, y_test = split_train_test(features=boston.data,
-                                                        target=boston.target)
+    X_train, X_test, y_train, y_test = split_train_test(features=boston_features,
+                                                        target=boston_target)
+
     # list of Generalised ML Models
     models = [svm.SVR(kernel='rbf', C=50000, gamma=0.00001, epsilon=.0001),
               LinearRegression(),
@@ -125,10 +164,10 @@ if __name__ == '__main__':
         print('------------------------', models_names[i], '------------------------')
 
         # if model was previously saved, load it
-        model = load_model(models_names[i])
-        if model:
+        current_model = load_model(models_names[i])
+        if current_model:
             print('loading ', models_names[i], ' ...')
-            models[i] = model
+            models[i] = current_model
         else:
             # otherwise, train it
             print('training ', models_names[i], ' ...')
@@ -164,7 +203,7 @@ if __name__ == '__main__':
         axes[i / 3][i % 3].legend((train, test), ('Training', 'Test'), loc='lower left')
 
     # display all features sorted by importance in descending order.
-    df = DataFrame(boston.feature_names)
+    df = DataFrame(boston_feature_names)
     df.columns = ['Features']
     df['Importance'] = models[-1].feature_importances_  # use data from 'Gradient Boosting' model
     print(df.sort_values(by='Importance', ascending=False))
@@ -172,3 +211,7 @@ if __name__ == '__main__':
     # display residual plot
     plt.tight_layout()
     plt.show()
+
+    # find best combination of features
+    best_mse, features_list = find_best_features(models[-1], X_train, X_test, y_train, y_test)
+    print('Best MSE: ', best_mse, ' using features: ', features_list)
