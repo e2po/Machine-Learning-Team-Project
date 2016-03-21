@@ -46,7 +46,7 @@ def load_dataset():
     return load_boston()
 
 
-def split_train_test(features, target, test_size=0.20):
+def split_train_test(features, target, test_size=0.25):
     """
     Split dataset into random Train and Test subsets.
 
@@ -123,7 +123,7 @@ def show_relationships(dataset):
         print("14. MEDV :    Median value of owner-occupied homes in $1000's")
 
         # Request User Input
-        print("\nSelect Feature [1-14] :")
+        print("\nSelect Feature [1-13] :")
         feature = input()
 
         # Plot data based on user selection
@@ -135,6 +135,7 @@ def show_relationships(dataset):
             column = boston_data_frame.ZN
             colName = "ZN"
             plot_relationship(column, boston_data_frame, colName)
+
         elif feature == "3":
             column = boston_data_frame.INDUS
             colName = "INDUS"
@@ -179,10 +180,6 @@ def show_relationships(dataset):
             column = boston_data_frame.LSTAT
             colName = "LSTAT"
             plot_relationship(column, boston_data_frame, colName)
-        elif feature == "14":
-            column = boston_data_frame.MEDV
-            colName = "MEDV"
-            plot_relationship(column, boston_data_frame, colName)
 
 
 def plot_relationship(feature, dataframe, featureName):
@@ -191,6 +188,24 @@ def plot_relationship(feature, dataframe, featureName):
     plt.ylabel("Housing Price")
     plt.title("Relationship between Feature and Price")
     plt.show()
+
+
+def predict_prices(dataset, model, model_name):
+    # Convert dataset to a dataframe
+    boston_data_frame = DataFrame(dataset.data)
+    boston_data_frame.columns = dataset.feature_names
+    boston_data_frame.head()
+    # Add a Price column to the tabe
+    boston_data_frame['PRICE'] = dataset.target
+
+    selected_features = boston_data_frame.drop(['PRICE'], axis = 1)
+    lm = model
+    lm.fit(selected_features, boston_data_frame.PRICE)
+    mse_prediction = np.mean((boston_data_frame.PRICE - lm.predict(selected_features)) ** 2)
+    print('---', model_name, " - Predicted Prices" '---')
+    prediction_arr = lm.predict(selected_features)[0:50]
+    print("First 50 predictions : ", prediction_arr)
+    print("Mean Square Error : ", mse_prediction)
 
 
 def save_model(m, model_name):
@@ -220,7 +235,7 @@ if __name__ == '__main__':
               Lasso(alpha=0.1, fit_intercept=True),
               ElasticNet(alpha=0.1, fit_intercept=True),
               Lars(fit_intercept=True, n_nonzero_coefs=np.inf, normalize=True),
-              GradientBoostingRegressor(n_estimators=200)]
+              GradientBoostingRegressor(n_estimators=500, max_depth=4, min_samples_split=1, learning_rate=0.01, loss='ls')]
     models_names = ['SVM RBF', 'Linear', 'Ridge', 'Random Forest', 'Extra Trees', 'Lasso', 'Elastic Net', 'LARS',
                     'Gradient Boosting']
 
@@ -256,6 +271,8 @@ if __name__ == '__main__':
               'Mean Square Error: {0:.2f}'.format(testing_mse),
               'R2: {0:.2f}'.format(testing_r2), " Tested " + models_names[i])
 
+        predict_prices(boston, model, models_names[i])
+
         # set up residual plot for this model
         axes[i / 3][i % 3].set_aspect('equal')
         axes[i / 3][i % 3].set_title(models_names[i])
@@ -280,6 +297,8 @@ if __name__ == '__main__':
     # display residual plot
     plt.tight_layout()
     plt.show()
+
+    predict_prices(boston)
 
     print("See Relationship between Features and Prices? [Y/N]")
     user_input = input()
