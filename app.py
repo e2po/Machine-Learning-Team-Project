@@ -200,7 +200,8 @@ def save_model(m, model_name):
 
 
 def load_model(model_name):
-    return joblib.load('persistence/' + model_name)
+    if os.path.exists('persistence/' + model_name):
+        return joblib.load('persistence/' + model_name)
 
 if __name__ == '__main__':
     # load dataset
