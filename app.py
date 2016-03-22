@@ -3,7 +3,7 @@ Authors:    Liu, Yuntian
             Murphy, Declan
             Porebski, Elvis
             Tyrakowski, Bartosz
-Date:       22-02-2016
+Date:       March, 2016
 Purpose:    Machine Learning Team Project.
 
 Generalised Machine Learning Models:
@@ -16,293 +16,272 @@ Generalised Machine Learning Models:
             7. Extra Trees.
             8. Gradient Boosting.
 """
-import os
+import time
+from itertools import combinations
 
-import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
 from pandas import DataFrame
-from sklearn import metrics, svm
-from sklearn.cross_validation import train_test_split, KFold, cross_val_score
-from sklearn.ensemble import ExtraTreesRegressor, GradientBoostingRegressor
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.externals import joblib
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import Ridge
-from sklearn.linear_model import Lasso
-from sklearn.linear_model import ElasticNet
-from sklearn.linear_model import Lars
 
-sns.set_style('whitegrid')
+from dataset import DataSet
+from graph import plot_relationship, plot_residual
+from model import get_models, measure_performance
 
 
-def load_dataset():
-    """
-    Load Boston Housing Dataset from scikit-learn library.
+def show_relationships():
+    # Display options to user
+    print("--------------------------------------------------------------------------")
+    print("Relationship between feature and price")
+    print("--------------------------------------------------------------------------")
+    print("0. CRIM :     per capita crime rate by town")
+    print("1. ZN :       proportion of residential land zoned for lots over 25,000 sq.ft.")
+    print("2. INDUS :    proportion of non-retail business acres per town")
+    print("3. CHAS :     Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)")
+    print("4. NOX :      nitric oxides concentration (parts per 10 million)")
+    print("5. RM :       average number of rooms per dwelling")
+    print("6. AGE :      proportion of owner-occupied units built prior to 1940")
+    print("7. DIS :      weighted distances to five Boston employment centres")
+    print("8. RAD :      index of accessibility to radial highways")
+    print("9. TAX :     full-value property-tax rate per $10,000")
+    print("10. PTRATIO : pupil-teacher ratio by town")
+    print("11. B :       1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town")
+    print("12. LSTAT :   % lower status of the population")
+    print('13. Back')
+    print("--------------------------------------------------------------------------")
 
-    :return: boston dataset
-    """
-    from sklearn.datasets import load_boston
-    return load_boston()
-
-
-def split_train_test(features, target, test_size=0.25):
-    """
-    Split dataset into random Train and Test subsets.
-
-    :param features:    Input variables(features)
-    :param target:      Output variable(target value)
-    :param test_size:   Percentage of dataset used for testing, default 20%.
-    :return: tuple:     (X_train, X_test, y_train, y_test) where X represents features and y represents target value
-    """
-    return train_test_split(features,
-                            target,
-                            test_size=test_size,
-                            random_state=14)
-
-
-def describe_dataset(dataset):
-    total_houses, total_features = dataset.data.shape
-    min_price = np.min(dataset.target)
-    max_price = np.max(dataset.target)
-    mean_price = np.mean(dataset.target)
-    median_price = np.median(dataset.target)
-    std_dev = np.std(dataset.target)
-
-    print('------------------------------------------------------------------------')
-    print(boston.DESCR)
-    print('Boston Housing Dataset')
-    print('Total number of houses: ', total_houses)
-    print('Total number of features: ', total_features)
-    print('Minimum house price: ', min_price)
-    print('Maximum house price: ', max_price)
-    print('Mean house price: ', mean_price)
-    print('Median house price: ', median_price)
-    print('Standard deviation of house price: ', std_dev)
+    running = True
+    while running:
+        user_input = input('Enter your choice: ')
+        if user_input == '13':
+            running = False
+        elif user_input.isdigit():
+            index = int(user_input)
+            if 0 <= index < 13:
+                plot_relationship(dataset.dataset.ix[:, 0], dataset.target, dataset.column_names[index])
 
 
-def train_and_evaluate(model, features, target):
-    model.fit(features, target)
-    print("Coefficient of determination on training set:", model.score(features, target))
-    cv = KFold(X_train.shape[0], 5, shuffle=True, random_state=33)
-    scores = cross_val_score(model, features, target, cv=cv)
-    print("Average coefficient of determination using 5-fold cross validation:", np.mean(scores))
+def show_model_performance(model):
+    print('--------------------------------------------------------------------------')
+    print(model.estimator_name, 'Performance')
+    print('--------------------------------------------------------------------------')
+
+    # Predict prices with data used for training
+    predicted_training_target = model.predict(training_features)
+    # Predict prices with new and unseen data
+    predicted_testing_target = model.predict(testing_features)
+
+    # Measure Mean Absolute Error, Mean Squared Error and Coefficient of Determination score.
+    training_mae, training_mse, training_r2 = measure_performance(predicted_training_target, training_target)
+    testing_mae, testing_mse, testing_r2 = measure_performance(predicted_testing_target, testing_target)
+
+    print('Mean Absolute Error: {0:.2f}'.format(training_mae),
+          'Mean Square Error: {0:.2f}'.format(training_mse),
+          'R2: {0:.2f}'.format(training_r2), "Trained " + model.estimator_name)
+    print('Mean Absolute Error: {0:.2f}'.format(testing_mae),
+          'Mean Square Error: {0:.2f}'.format(testing_mse),
+          'R2: {0:.2f}'.format(testing_r2), " Tested " + model.estimator_name)
+
+    # Create a data frame
+    data_frame = DataFrame()
+    # Add a PREDICTED price column to the table
+    data_frame['PREDICTED'] = predicted_testing_target
+    # Add an ACTUAL price column to the table
+    data_frame['ACTUAL'] = list(testing_target)
+
+    print('--------------------------------------------------------------------------')
+    print("First 10 predictions for unseen new data : ")
+    print(data_frame[:10])
 
 
-def measure_performance(actual_target, expected_target):
-    mae = metrics.mean_absolute_error(expected_target, actual_target)
-    mse = metrics.mean_squared_error(expected_target, actual_target)
-    r2 = metrics.r2_score(expected_target, actual_target)
-    return mae, mse, r2
+def show_model_list():
+    running = True
+    while running:
+        print('--------------------------------------------------------------------------')
+        print('Generalised Models')
+        print('--------------------------------------------------------------------------')
+        for index, m in enumerate(models):
+            print('{}. {}'.format(index, m.estimator_name))
+        print('{}. Back'.format(len(models)))
+        print('--------------------------------------------------------------------------')
+
+        user_input = input('Enter your choice: ')
+        if user_input == '9':
+            running = False
+        elif user_input.isdigit():
+            index = int(user_input)
+            if 0 <= index < len(models):
+                show_model_options(models[index])
 
 
-def show_relationships(dataset):
-        
-        # Convert dataset to a dataframe
-        boston_data_frame = DataFrame(dataset.data)
-        boston_data_frame.columns = dataset.feature_names
-        boston_data_frame.head()
-        # Add a Price column to the tabe
-        boston_data_frame['PRICE'] = dataset.target
-
-        # Display options to user
-        print("--------------------------------------------------------------------------")
-        print("1. CRIM :     per capita crime rate by town")
-        print("2. ZN :       proportion of residential land zoned for lots over 25,000 sq.ft.")
-        print("3. INDUS :    proportion of non-retail business acres per town")
-        print("4. CHAS :     Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)")
-        print("5. NOX :      nitric oxides concentration (parts per 10 million)")
-        print("6. RM :       average number of rooms per dwelling")
-        print("7. AGE :      proportion of owner-occupied units built prior to 1940")
-        print("8. DIS :      weighted distances to five Boston employment centres")
-        print("9. RAD :      index of accessibility to radial highways")
-        print("10. TAX :     full-value property-tax rate per $10,000")
-        print("11. PTRATIO : pupil-teacher ratio by town")
-        print("12. B :       1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town")
-        print("13. LSTAT :   % lower status of the population")
-        print("14. MEDV :    Median value of owner-occupied homes in $1000's")
-
-        # Request User Input
-        print("\nSelect Feature [1-13] :")
-        feature = input()
-
-        # Plot data based on user selection
-        if feature == "1":
-            column = boston_data_frame.CRIM
-            colName = "CRIM"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "2":
-            column = boston_data_frame.ZN
-            colName = "ZN"
-            plot_relationship(column, boston_data_frame, colName)
-
-        elif feature == "3":
-            column = boston_data_frame.INDUS
-            colName = "INDUS"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "4":
-            column = boston_data_frame.CHAS
-            colName = "CHAS"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "5":
-            column = boston_data_frame.NOX
-            colName = "NOX"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "6":
-            column = boston_data_frame.RM
-            colName = "RM"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "7":
-            column = boston_data_frame.AGE
-            colName = "AGE"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "8":
-            column = boston_data_frame.DIS
-            colName = "DIS"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "9":
-            column = boston_data_frame.RAD
-            colName = "RAD"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "10":
-            column = boston_data_frame.TAX
-            colName = "TAX"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "11":
-            column = boston_data_frame.PTRATIO
-            colName = "PTRATIO"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "12":
-            column = boston_data_frame.B
-            colName = "B"
-            plot_relationship(column, boston_data_frame, colName)
-        elif feature == "13":
-            column = boston_data_frame.LSTAT
-            colName = "LSTAT"
-            plot_relationship(column, boston_data_frame, colName)
+def show_main_menu():
+    running = True
+    while running:
+        print('--------------------------------------------------------------------------')
+        print('Main Menu')
+        print('--------------------------------------------------------------------------')
+        print('0. Show ML Models')
+        print('1. Show Best ML Model')
+        print('2. Show Relationships')
+        print('3. Exit')
+        print('--------------------------------------------------------------------------')
+        user_input = input('Enter your choice: ')
+        if user_input == '0':
+            show_model_list()
+        elif user_input == '2':
+            show_relationships()
+        elif user_input == '3':
+            running = False
 
 
-def plot_relationship(feature, dataframe, featureName):
-    plt.scatter(feature, dataframe.PRICE)
-    plt.xlabel(featureName)
-    plt.ylabel("Housing Price")
-    plt.title("Relationship between Feature and Price")
-    plt.show()
+def show_model_options(model):
+    running = True
+    while running:
+        print('--------------------------------------------------------------------------')
+        print(model.estimator_name)
+        print('--------------------------------------------------------------------------')
+        print('0. Show performance')
+        print('1. Show residual plot')
+        print('2. Train this model again')
+        print('3. Brute force combination of features')
+        print('4. Display feature importance')
+        print('5. Predict housing price using custom features')
+        print('6. Back')
+        print('--------------------------------------------------------------------------')
+
+        user_input = input('Enter your choice: ')
+        if user_input == '6':
+            running = False
+
+        # Show Performance.
+        elif user_input == '0' and user_input.isdigit:
+            show_model_performance(model)
+
+        # Show Residual Plot.
+        elif user_input == '1':
+            # Predict prices with data used for training.
+            predicted_training_target = model.predict(training_features)
+            # Predict prices with new and unseen data.
+            predicted_testing_target = model.predict(testing_features)
+
+            # Generate and show residual plot.
+            plot_residual(predicted_training_target=predicted_training_target, actual_training_target=training_target,
+                          predicted_testing_target=predicted_testing_target, actual_testing_target=testing_target,
+                          model_name=model.estimator_name)
+
+        # Train again.
+        elif user_input == '2' and user_input.isdigit:
+            print('Training {} ...'.format(model.estimator_name))
+            model.train_and_evaluate(features=training_features, target=training_target, kfold=True)
+            print('Training completed!')
+            model.save()
+            print('Model persisted.')
+
+        elif user_input == '3':
+            print('searching for best combination of features...')
+            best_mse, best_feature_lists = find_best_features(model)
+            print('Best MSE:', best_mse, 'using features:', best_feature_lists)
+
+        elif user_input == '4':
+            df = DataFrame()
+            df['FEATURE'] = dataset.column_names[0:-1]
+            if model.estimator_name in ['Elastic Net', 'LARS', 'Lasso', 'Ridge', 'Linear', ]:
+                df['IMPORTANCE'] = model.estimator.coef_
+                print(df.sort_values(by='IMPORTANCE', ascending=False))
+            elif model.estimator_name in ['Gradient Boosting', 'Random Forest', 'Extra Trees']:
+                df['IMPORTANCE'] = model.estimator.feature_importances_
+                print(df.sort_values(by='IMPORTANCE', ascending=False))
+            elif model.estimator_name in ['SVM RBF']:
+                print(model.estimator.dual_coef_)
+
+        elif user_input == '5':
+            predict_custom(model)
 
 
-def predict_prices(dataset, model, model_name):
-    # Convert dataset to a dataframe
-    boston_data_frame = DataFrame(dataset.data)
-    boston_data_frame.columns = dataset.feature_names
-    boston_data_frame.head()
-    # Add a Price column to the tabe
-    boston_data_frame['PRICE'] = dataset.target
+def find_best_features(model):
+    best_mse = 100
+    best_features = []
+    indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+    start = time.time()
+    for combination_length in reversed(range(13)):
+        combination_length += 1
+        for c in combinations(indices, combination_length):
+            model.estimator.fit(training_features.ix[:, c], training_target)
+            predicted = model.predict(testing_features.ix[:, c])
 
-    selected_features = boston_data_frame.drop(['PRICE'], axis = 1)
-    lm = model
-    lm.fit(selected_features, boston_data_frame.PRICE)
-    mse_prediction = np.mean((boston_data_frame.PRICE - lm.predict(selected_features)) ** 2)
-    print('---', model_name, " - Predicted Prices" '---')
-    prediction_arr = lm.predict(selected_features)[0:50]
-    print("First 50 predictions : ", prediction_arr)
-    print("Mean Square Error : ", mse_prediction)
+            t_mae, current_mse, t_r2 = measure_performance(predicted, testing_target)
+            if current_mse < best_mse:
+                print('New best MSE: ', current_mse, ' using features: ', c)
+                best_mse = current_mse
+                best_features = c
+
+    end = time.time()
+    print('Execution time: ', end - start)
+
+    # train model again with all features
+    model.estimator.fit(training_features, training_target)
+    return best_mse, best_features
 
 
-def save_model(m, model_name):
-    if not os.path.exists('persistence'):
-        os.makedirs('persistence')
-    joblib.dump(m, 'persistence/' + model_name)
+def predict_custom(model):
+    print("0. CRIM :     per capita crime rate by town")
+    print("1. ZN :       proportion of residential land zoned for lots over 25,000 sq.ft.")
+    print("2. INDUS :    proportion of non-retail business acres per town")
+    print("3. CHAS :     Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)")
+    print("4. NOX :      nitric oxides concentration (parts per 10 million)")
+    print("5. RM :       average number of rooms per dwelling")
+    print("6. AGE :      proportion of owner-occupied units built prior to 1940")
+    print("7. DIS :      weighted distances to five Boston employment centres")
+    print("8. RAD :      index of accessibility to radial highways")
+    print("9. TAX :     full-value property-tax rate per $10,000")
+    print("10. PTRATIO : pupil-teacher ratio by town")
+    print("11. B :       1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town")
+    print("12. LSTAT :   % lower status of the population")
+    print('--------------------------------------------------------------------------')
+    features = []
+    crim = input('CRIM: ')
+    zn = input('ZN: ')
+    indus = input('INDUS: ')
+    chas = input('CHAS: ')
+    nox = input('NOX: ')
+    rm = input('RM: ')
+    age = input('AGE: ')
+    dis = input('DIS: ')
+    rad = input('RAD: ')
+    tax = input('TAX: ')
+    ptratio = input('PTRATIO: ')
+    b = input('B: ')
+    lstat = input('LSTAT: ')
 
+    try:
+        features.append(float(crim))
+        features.append(float(zn))
+        features.append(float(indus))
+        features.append(float(chas))
+        features.append(float(nox))
+        features.append(float(rm))
+        features.append(float(age))
+        features.append(float(dis))
+        features.append(float(rad))
+        features.append(float(tax))
+        features.append(float(ptratio))
+        features.append(float(b))
+        features.append(float(lstat))
 
-def load_model(model_name):
-    if os.path.exists('persistence/' + model_name):
-        return joblib.load('persistence/' + model_name)
+        # f = [0.00632,18,2.31,0,0.538,6.575,65.2,4.09,1,296,15.3,396.9,4.98]
+
+        print('Predicted Value:', model.predict(np.asarray(features).reshape(1, -1))[0])
+        # print('Predicted Value:', model.predict(features)[0])
+    except Exception as err:
+        print('An error has occured.', err)
+
 
 if __name__ == '__main__':
     # load dataset
-    boston = load_dataset()
-    # describe_dataset
-    describe_dataset(boston)
+    dataset = DataSet.load()
+
     # split dataset into training and testing subsets
-    X_train, X_test, y_train, y_test = split_train_test(features=boston.data,
-                                                        target=boston.target)
+    training_features, testing_features, training_target, testing_target = dataset.split_train_test()
+
     # list of Generalised ML Models
-    models = [svm.SVR(kernel='rbf', C=50000, gamma=0.00001, epsilon=.0001),
-              LinearRegression(),
-              Ridge(alpha=0.1, fit_intercept=True),
-              RandomForestRegressor(n_estimators=100, max_depth=4, min_samples_leaf=1, min_samples_split=2),
-              ExtraTreesRegressor(n_estimators=10, random_state=42),
-              Lasso(alpha=0.1, fit_intercept=True),
-              ElasticNet(alpha=0.1, fit_intercept=True),
-              Lars(fit_intercept=True, n_nonzero_coefs=np.inf, normalize=True),
-              GradientBoostingRegressor(n_estimators=500, max_depth=4, min_samples_split=1, learning_rate=0.01, loss='ls')]
-    models_names = ['SVM RBF', 'Linear', 'Ridge', 'Random Forest', 'Extra Trees', 'Lasso', 'Elastic Net', 'LARS',
-                    'Gradient Boosting']
+    models = get_models(training_features, training_target)
 
-    # set up residual plot to visualise how good the model is
-    fig, axes = plt.subplots(3, 3)  # 3x3 grid of figures
-    fig.canvas.set_window_title('Residual Plots')
-
-    for i in range(len(models)):
-        print('\n------------------------', models_names[i], '------------------------')
-
-        # if model was previously saved, load it
-        model = load_model(models_names[i])
-        if model:
-            print('loading ', models_names[i], ' ...')
-            models[i] = model
-        else:
-            # otherwise, train it
-            print('training ', models_names[i], ' ...')
-            train_and_evaluate(models[i], X_train, y_train)
-
-        predicted_training_target = models[i].predict(X_train)
-        predicted_testing_target = models[i].predict(X_test)
-
-        save_model(models[i], models_names[i])
-
-        training_mae, training_mse, training_r2 = measure_performance(predicted_training_target, y_train)
-        testing_mae, testing_mse, testing_r2 = measure_performance(predicted_testing_target, y_test)
-
-        print('Mean Absolute Error: {0:.2f}'.format(training_mae),
-              'Mean Square Error: {0:.2f}'.format(training_mse),
-              'R2: {0:.2f}'.format(training_r2), "Trained " + models_names[i])
-        print('Mean Absolute Error: {0:.2f}'.format(testing_mae),
-              'Mean Square Error: {0:.2f}'.format(testing_mse),
-              'R2: {0:.2f}'.format(testing_r2), " Tested " + models_names[i])
-
-        predict_prices(boston, model, models_names[i])
-
-        # set up residual plot for this model
-        axes[i / 3][i % 3].set_aspect('equal')
-        axes[i / 3][i % 3].set_title(models_names[i])
-
-        train = axes[i/3][i % 3].scatter(predicted_training_target,
-                                         predicted_training_target - y_train, c='b', alpha=0.5)
-        test = axes[i/3][i % 3].scatter(predicted_testing_target,
-                                        predicted_testing_target - y_test, c='r', alpha=0.5)
-
-        axes[i / 3][i % 3].set_aspect('equal')
-        axes[i / 3][i % 3].set_title(models_names[i])
-        axes[i / 3][i % 3].hlines(y=0, xmin=-10, xmax=50)
-        axes[i / 3][i % 3].legend((train, test), ('Training', 'Test'), loc='lower left')
-
-    # display all features sorted by importance in descending order.
-    df = DataFrame(boston.feature_names)
-    df.columns = ['Features']
-    df['Importance'] = models[-1].feature_importances_  # use data from 'Gradient Boosting' model
-    print('------------------------------------------------------------------------')
-    print(df.sort_values(by='Importance', ascending=False))
-
-    # display residual plot
-    plt.tight_layout()
-    plt.show()
-
-    predict_prices(boston)
-
-    print("See Relationship between Features and Prices? [Y/N]")
-    user_input = input()
-    if user_input == "Y" or user_input == "y":
-        show_relationships(boston)
-
-
+    show_main_menu()
