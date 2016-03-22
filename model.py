@@ -71,6 +71,7 @@ def get_models(features, target):
         model = Model.load(estimator_name)
         # if model was loaded from a file
         if model:
+            model.estimator_name = estimator_name
             # append it to a list
             models.append(model)
         # otherwise create a new model and then append it to a list
