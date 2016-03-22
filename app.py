@@ -100,7 +100,7 @@ def show_model_list():
         print('--------------------------------------------------------------------------')
         for index, m in enumerate(models):
             print('{}. {}'.format(index, m.estimator_name))
-        print('{}. Back'.format(len(models)))
+        print('9. Back')
         print('--------------------------------------------------------------------------')
 
         user_input = input('Enter your choice: ')
