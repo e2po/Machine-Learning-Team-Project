@@ -207,9 +207,10 @@ def find_best_features(model):
             model.estimator.fit(training_features.ix[:, c], training_target)
             predicted = model.predict(testing_features.ix[:, c])
 
-            t_mae, current_mse, t_r2 = measure_performance(predicted, testing_target)
+            mae, current_mse, r2 = measure_performance(predicted, testing_target)
             if current_mse < best_mse:
                 print('New best MSE: ', current_mse, ' using features: ', c)
+                print('R2: ', r2)
                 best_mse = current_mse
                 best_features = c
 
