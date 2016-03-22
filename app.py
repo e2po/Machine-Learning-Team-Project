@@ -17,12 +17,9 @@ Generalised Machine Learning Models:
             8. Gradient Boosting.
 """
 import os
-import time
-from itertools import combinations
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import seaborn as sns
 from pandas import DataFrame
 from sklearn import metrics, svm
@@ -32,6 +29,9 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.externals import joblib
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Ridge
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import ElasticNet
+from sklearn.linear_model import Lars
 
 sns.set_style('whitegrid')
 
@@ -42,23 +42,11 @@ def load_dataset():
 
     :return: boston dataset
     """
-    url = 'https://archive.ics.uci.edu/ml/machine-learning-databases/housing/housing.data'
-    col_names = ['CRIM', 'ZN', 'INDUS', 'CHAS', 'NOX', 'RM', 'AGE',
-                 'DIS', 'RAD', 'TAX', 'PTRATIO', 'B', 'LSTAT', 'MEDV']
-    dataset = pd.read_csv(url, header=None, delim_whitespace=True, names=col_names)
-
-    if pd.isnull(dataset).any().any():
-        print('Some values are missing.')
-        dataset = dataset.dropna()
-
-    feature_cols = col_names[:-1]
-    features = dataset[feature_cols]
-    target = dataset.MEDV
-
-    return feature_cols, features, target
+    from sklearn.datasets import load_boston
+    return load_boston()
 
 
-def split_train_test(features, target, test_size=0.20):
+def split_train_test(features, target, test_size=0.25):
     """
     Split dataset into random Train and Test subsets.
 
@@ -81,6 +69,8 @@ def describe_dataset(dataset):
     median_price = np.median(dataset.target)
     std_dev = np.std(dataset.target)
 
+    print('------------------------------------------------------------------------')
+    print(boston.DESCR)
     print('Boston Housing Dataset')
     print('Total number of houses: ', total_houses)
     print('Total number of features: ', total_features)
@@ -106,68 +96,161 @@ def measure_performance(actual_target, expected_target):
     return mae, mse, r2
 
 
-def save_model(model, model_name):
+def show_relationships(dataset):
+        
+        # Convert dataset to a dataframe
+        boston_data_frame = DataFrame(dataset.data)
+        boston_data_frame.columns = dataset.feature_names
+        boston_data_frame.head()
+        # Add a Price column to the tabe
+        boston_data_frame['PRICE'] = dataset.target
+
+        # Display options to user
+        print("--------------------------------------------------------------------------")
+        print("1. CRIM :     per capita crime rate by town")
+        print("2. ZN :       proportion of residential land zoned for lots over 25,000 sq.ft.")
+        print("3. INDUS :    proportion of non-retail business acres per town")
+        print("4. CHAS :     Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)")
+        print("5. NOX :      nitric oxides concentration (parts per 10 million)")
+        print("6. RM :       average number of rooms per dwelling")
+        print("7. AGE :      proportion of owner-occupied units built prior to 1940")
+        print("8. DIS :      weighted distances to five Boston employment centres")
+        print("9. RAD :      index of accessibility to radial highways")
+        print("10. TAX :     full-value property-tax rate per $10,000")
+        print("11. PTRATIO : pupil-teacher ratio by town")
+        print("12. B :       1000(Bk - 0.63)^2 where Bk is the proportion of blacks by town")
+        print("13. LSTAT :   % lower status of the population")
+        print("14. MEDV :    Median value of owner-occupied homes in $1000's")
+
+        # Request User Input
+        print("\nSelect Feature [1-13] :")
+        feature = input()
+
+        # Plot data based on user selection
+        if feature == "1":
+            column = boston_data_frame.CRIM
+            colName = "CRIM"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "2":
+            column = boston_data_frame.ZN
+            colName = "ZN"
+            plot_relationship(column, boston_data_frame, colName)
+
+        elif feature == "3":
+            column = boston_data_frame.INDUS
+            colName = "INDUS"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "4":
+            column = boston_data_frame.CHAS
+            colName = "CHAS"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "5":
+            column = boston_data_frame.NOX
+            colName = "NOX"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "6":
+            column = boston_data_frame.RM
+            colName = "RM"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "7":
+            column = boston_data_frame.AGE
+            colName = "AGE"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "8":
+            column = boston_data_frame.DIS
+            colName = "DIS"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "9":
+            column = boston_data_frame.RAD
+            colName = "RAD"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "10":
+            column = boston_data_frame.TAX
+            colName = "TAX"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "11":
+            column = boston_data_frame.PTRATIO
+            colName = "PTRATIO"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "12":
+            column = boston_data_frame.B
+            colName = "B"
+            plot_relationship(column, boston_data_frame, colName)
+        elif feature == "13":
+            column = boston_data_frame.LSTAT
+            colName = "LSTAT"
+            plot_relationship(column, boston_data_frame, colName)
+
+
+def plot_relationship(feature, dataframe, featureName):
+    plt.scatter(feature, dataframe.PRICE)
+    plt.xlabel(featureName)
+    plt.ylabel("Housing Price")
+    plt.title("Relationship between Feature and Price")
+    plt.show()
+
+
+def predict_prices(dataset, model, model_name):
+    # Convert dataset to a dataframe
+    boston_data_frame = DataFrame(dataset.data)
+    boston_data_frame.columns = dataset.feature_names
+    boston_data_frame.head()
+    # Add a Price column to the tabe
+    boston_data_frame['PRICE'] = dataset.target
+
+    selected_features = boston_data_frame.drop(['PRICE'], axis = 1)
+    lm = model
+    lm.fit(selected_features, boston_data_frame.PRICE)
+    mse_prediction = np.mean((boston_data_frame.PRICE - lm.predict(selected_features)) ** 2)
+    print('---', model_name, " - Predicted Prices" '---')
+    prediction_arr = lm.predict(selected_features)[0:50]
+    print("First 50 predictions : ", prediction_arr)
+    print("Mean Square Error : ", mse_prediction)
+
+
+def save_model(m, model_name):
     if not os.path.exists('persistence'):
         os.makedirs('persistence')
-    joblib.dump(model, 'persistence/' + model_name)
+    joblib.dump(m, 'persistence/' + model_name)
 
 
 def load_model(model_name):
-    return joblib.load('persistence/' + model_name)
-
-
-def find_best_features(model, training_features, testing_features, training_target, testing_target):
-    current_best_mse = 100
-    current_best_features = []
-    indices = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
-    start = time.time()
-    for combination_length in reversed(range(13)):
-        combination_length += 1
-        for c in combinations(indices, combination_length):
-            model.fit(training_features.ix[:, c], training_target)
-            predicted = models[-1].predict(testing_features.ix[:, c])
-            t_mae, current_mse, t_r2 = measure_performance(predicted, testing_target)
-            if current_mse < current_best_mse:
-                print('New best MSE: ', current_mse, ' using features: ', c)
-                current_best_mse = current_mse
-                current_best_features = c
-
-    end = time.time()
-    print('Execution time: ', end - start)
-    return current_best_mse, current_best_features
-
+    if os.path.exists('persistence/' + model_name):
+        return joblib.load('persistence/' + model_name)
 
 if __name__ == '__main__':
     # load dataset
-    boston_feature_names, boston_features, boston_target = load_dataset()
-
-    # describe_dataset(boston)
-
+    boston = load_dataset()
+    # describe_dataset
+    describe_dataset(boston)
     # split dataset into training and testing subsets
-    X_train, X_test, y_train, y_test = split_train_test(features=boston_features,
-                                                        target=boston_target)
-
+    X_train, X_test, y_train, y_test = split_train_test(features=boston.data,
+                                                        target=boston.target)
     # list of Generalised ML Models
     models = [svm.SVR(kernel='rbf', C=50000, gamma=0.00001, epsilon=.0001),
               LinearRegression(),
-              Ridge(alpha=0.1),
+              Ridge(alpha=0.1, fit_intercept=True),
               RandomForestRegressor(n_estimators=100, max_depth=4, min_samples_leaf=1, min_samples_split=2),
               ExtraTreesRegressor(n_estimators=10, random_state=42),
-              GradientBoostingRegressor(n_estimators=200)]
-    models_names = ['SVM RBF', 'Linear', 'Ridge', 'Random Forest', 'Extra Trees', 'Gradient Boosting']
+              Lasso(alpha=0.1, fit_intercept=True),
+              ElasticNet(alpha=0.1, fit_intercept=True),
+              Lars(fit_intercept=True, n_nonzero_coefs=np.inf, normalize=True),
+              GradientBoostingRegressor(n_estimators=500, max_depth=4, min_samples_split=1, learning_rate=0.01, loss='ls')]
+    models_names = ['SVM RBF', 'Linear', 'Ridge', 'Random Forest', 'Extra Trees', 'Lasso', 'Elastic Net', 'LARS',
+                    'Gradient Boosting']
 
     # set up residual plot to visualise how good the model is
     fig, axes = plt.subplots(3, 3)  # 3x3 grid of figures
     fig.canvas.set_window_title('Residual Plots')
 
     for i in range(len(models)):
-        print('------------------------', models_names[i], '------------------------')
+        print('\n------------------------', models_names[i], '------------------------')
 
         # if model was previously saved, load it
-        current_model = load_model(models_names[i])
-        if current_model:
+        model = load_model(models_names[i])
+        if model:
             print('loading ', models_names[i], ' ...')
-            models[i] = current_model
+            models[i] = model
         else:
             # otherwise, train it
             print('training ', models_names[i], ' ...')
@@ -181,12 +264,14 @@ if __name__ == '__main__':
         training_mae, training_mse, training_r2 = measure_performance(predicted_training_target, y_train)
         testing_mae, testing_mse, testing_r2 = measure_performance(predicted_testing_target, y_test)
 
-        print('MAE: {0:.2f}'.format(training_mae),
-              'MSE: {0:.2f}'.format(training_mse),
+        print('Mean Absolute Error: {0:.2f}'.format(training_mae),
+              'Mean Square Error: {0:.2f}'.format(training_mse),
               'R2: {0:.2f}'.format(training_r2), "Trained " + models_names[i])
-        print('MAE: {0:.2f}'.format(testing_mae),
-              'MSE: {0:.2f}'.format(testing_mse),
+        print('Mean Absolute Error: {0:.2f}'.format(testing_mae),
+              'Mean Square Error: {0:.2f}'.format(testing_mse),
               'R2: {0:.2f}'.format(testing_r2), " Tested " + models_names[i])
+
+        predict_prices(boston, model, models_names[i])
 
         # set up residual plot for this model
         axes[i / 3][i % 3].set_aspect('equal')
@@ -203,15 +288,21 @@ if __name__ == '__main__':
         axes[i / 3][i % 3].legend((train, test), ('Training', 'Test'), loc='lower left')
 
     # display all features sorted by importance in descending order.
-    df = DataFrame(boston_feature_names)
+    df = DataFrame(boston.feature_names)
     df.columns = ['Features']
     df['Importance'] = models[-1].feature_importances_  # use data from 'Gradient Boosting' model
+    print('------------------------------------------------------------------------')
     print(df.sort_values(by='Importance', ascending=False))
 
     # display residual plot
     plt.tight_layout()
     plt.show()
 
-    # find best combination of features
-    best_mse, features_list = find_best_features(models[-1], X_train, X_test, y_train, y_test)
-    print('Best MSE: ', best_mse, ' using features: ', features_list)
+    predict_prices(boston)
+
+    print("See Relationship between Features and Prices? [Y/N]")
+    user_input = input()
+    if user_input == "Y" or user_input == "y":
+        show_relationships(boston)
+
+
