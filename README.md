@@ -1,7 +1,7 @@
 # Machine Learning Team Project
 **Abstract:** *The aim of this project is to demonstrate Machine Learning on a Real World Dataset.*
 
-**Due Date: 4th March 2016 5PM**
+**Due Date: 21th March 2016 5PM**
 
 ## Deliverables
 1. Completed and Documented Code.
